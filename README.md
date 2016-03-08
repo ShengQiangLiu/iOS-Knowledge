@@ -50,8 +50,42 @@
 
 ####——block部分
 #####29、使用block时什么情况会发生引用循环，如何解决？
+	
+    //造成循环引用
+    _handlerBlock = ^{
+    	// _string 为成员变量
+        NSLog(@"log self = %@", _string);
+    };
+    _handlerBlock();
+    
+造成循环引用的原因：
+这里的_string相当于是self->_string；那么block是会对内部的对象进行一次retain。也就是说，self会被retain一次。当self释放的时候，需要block释放后才会对self进行释放，但是block的释放又需要等self的dealloc中才会释放。如此一来变形成了循环引用，内存永远释放不了，导致内存泄露。
+
+	//__weak方式避免循环引用
+    __weak RetainCycleViewController *weakSelf = self;
+    _handlerBlock = ^{
+        NSLog(@"weak self = %@", weakSelf);
+    };
+    _handlerBlock();
+    
+    //__block方式避免循环应用
+    __block RetainCycleViewController *blockSelf = self;
+    _handlerBlock = ^{
+        NSLog(@"block self = %@", blockSelf);
+        
+        blockSelf = nil; //记的一定要置为nil，否则还是会造成内存泄露
+    };
+    _handlerBlock(); //同时该block需要执行,才可以
+
+
+    
 #####30、在block内如何修改block外部变量？
+在变量前加 __block 标识符就可以在block内部修改变量
+
 #####31、使用系统的某些block api（如UIView的block版本写动画时），是否也考虑引用循环问题？ 
+
+所谓循环引用，是因为当前控制器在引用着block，而block又引用着self即当前控制器，这样就造成了循环引用。系统的block调用并不在当前控制器中调用，那么这个self就不代表当前控制器，那自然也就没有循环引用的问题。以上引用均指强引用。 
+
 
 ####——KVC、KVO部分
 #####32、**addObserver:forKeyPath:options:context:**各个参数的作用分别是什么，observer中需要实现哪个方法才能获得KVO回调？
